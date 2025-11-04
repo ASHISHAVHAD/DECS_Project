@@ -7,12 +7,11 @@
 #include <mysql_driver.h>
 
 // default constructor
-ServerApp::ServerApp() : server_threads(0) {
+ServerApp::ServerApp() {
 
 }
 
-void ServerApp::init(int num_threads) {
-    server_threads = num_threads;
+void ServerApp::init() {
 
     log_message("Initializing ServerApp...");
 
@@ -167,10 +166,10 @@ void ServerApp::init(int num_threads) {
 }
 
 void ServerApp::run() {
-    log_message("Server starting with " + std::to_string(server_threads) + " worker threads.");
+    log_message("Server starting with " + std::to_string(std::thread::hardware_concurrency() - 1) + " worker threads.");
     log_message("Listening on 0.0.0.0:" + std::to_string(SERVER_PORT));
 
-    if (!svr.listen("0.0.0.0", SERVER_PORT, server_threads)) {
+    if (!svr.listen("0.0.0.0", SERVER_PORT)) {
         log_message("ERROR: Server failed to start or encountered an error.");
         exit(1);
     }

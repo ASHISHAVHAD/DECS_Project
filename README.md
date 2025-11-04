@@ -83,7 +83,7 @@ Directory Structure:
 7. Open new terminal window and change current working directory to DECS_Project/server:
 
     ```bash
-    ./kv_server <num_server_threads>
+    ./kv_server
     ```
 
 8. Open one more terminal and change current working directory to DECS_Project/interactive_client:
