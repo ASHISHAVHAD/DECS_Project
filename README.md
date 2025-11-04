@@ -12,6 +12,7 @@ GitHub Repository Link: https://github.com/ASHISHAVHAD/DECS_Project
 **Technical Details:** Server is implemented in cpp. For server operations, httplib library is used. For storing data mysql server is used. For database connection libmysqlcppconn-dev is used.
 
 Directory Structure:
+
     |- interactive_client
         |- main.cpp
         |- Makefile
