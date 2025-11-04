@@ -50,32 +50,29 @@ Directory Structure:
 
     ```bash
     sudo apt install mysql-server
-    sudo mysql_secure_installation
     ```
 
-3. Setup mysql-server:
-
-    Run the following commands in mysql cli:
-
-    ```bash
-    sudo mysql < create_db.sql
-    ```
-
-4. Clone this github repository:
+3. Clone this github repository:
 
     ```bash
     git clone https://github.com/ASHISHAVHAD/DECS_Project.git
     ```
 
-5. Compile and run server:
+4. Setup mysql-server:
 
     ```bash
-    cd DECS_Project
+    sudo mysql < create_db.sql
+    ```
+
+5. Compile server code:
+
+    ```bash
+    cd DECS_Project/server
     make
     ```
     This will create an executable named `kv_server` in the `server/` directory.
 
-6. Compile and run interactive client:
+6. Compile interactive client code:
 
     ```bash
     cd ../interactive_client
@@ -83,16 +80,15 @@ Directory Structure:
     ```
     This will create an executable named `interactive_client` in the `interactive_client/` directory.
 
-7. Open new terminal window and go to server directory:
+7. Open new terminal window and change current working directory to DECS_Project/server:
 
     ```bash
-    cd DECS_Project/server
     ./kv_server <num_server_threads>
+    ```
 
-8. Open one more terminal and go to server directory:
+8. Open one more terminal and change current working directory to DECS_Project/interactive_client:
 
     ```bash
-    cd DECS_Project/interactive_client
     ./interactive_client
     ```
 
