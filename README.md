@@ -61,13 +61,14 @@ Directory Structure:
 4. Setup mysql-server:
 
     ```bash
+    cd DECS_Project
     sudo mysql < create_db.sql
     ```
 
 5. Compile server code:
 
     ```bash
-    cd DECS_Project/server
+    cd server
     make
     ```
     This will create an executable named `kv_server` in the `server/` directory.
