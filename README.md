@@ -62,7 +62,7 @@ Directory Structure:
 
     ```bash
     cd DECS_Project
-    sudo mysql < create_db.sql
+    sudo mysql < create_db.sql -p
     ```
 
 5. Compile server code:
