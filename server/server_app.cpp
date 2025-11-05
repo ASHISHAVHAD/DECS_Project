@@ -41,7 +41,7 @@ void ServerApp::init() {
             source_str = "cache";
             res.set_content("{\"key\":\"" + key + "\", \"value\":\"" + value + "\", \"source\":\"cache\"}", "application/json");
         } else {
-            // Cache miss, goto database
+            // cache miss, goto database
             value = db_read(key);
             if (!value.empty()) { // found in database
                 res.status = 200;
@@ -154,15 +154,15 @@ void ServerApp::init() {
         }
     });
 
-    // error handler for requests that don't match any route
+    /* error handler for requests that don't match any route
     svr.set_error_handler([&](const httplib::Request& req, httplib::Response& res) {
         std::string log_msg_prefix = "Unhandled request " + req.method + " " + req.path + " from " + req.remote_addr + ":" + std::to_string(req.remote_port);
-        const char* fmt = "<p>Error Status: <span style='color:red;'>%d</span></p>";
+        const char* fmt = "Unknown route.";
         char buf[BUFSIZ];
         snprintf(buf, sizeof(buf), fmt, res.status);
         res.set_content(buf, "text/html");
         log_message(log_msg_prefix + " -> Status: " + std::to_string(res.status) + ", Error: Unhandled Route");
-    });
+    });*/
 }
 
 void ServerApp::run() {
