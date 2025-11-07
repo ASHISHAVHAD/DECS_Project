@@ -122,6 +122,7 @@ taskset -cp $MYSQL_PID
 2. For server:
 ```bash
 taskset -c <list of cpu cores> ./kv_server
+```
 
 3. For interactive client:
 ```bash
