@@ -126,7 +126,7 @@ taskset -c <list of cpu cores> ./kv_server
 
 3. For interactive client:
 ```bash
-taskset -c ./interactive_client
+taskset -c <list of cpu cores> ./interactive_client
 ```
 
 **Sample output of the client is provided below:**
