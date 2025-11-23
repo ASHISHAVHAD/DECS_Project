@@ -16,9 +16,9 @@ extern std::list<CacheEntry> lru_list;
 extern std::map<std::string, std::list<CacheEntry>::iterator> lru_map;
 extern std::mutex cache_mutex;
 
-// Cache implementation is LRU
+// cache implementation is LRU
 void cache_put(const std::string& key, const std::string& value);
-std::string cache_get(const std::string& key); // Returns empty string if not found
+std::string cache_get(const std::string& key); // returns empty string if not found
 void cache_delete(const std::string& key);
 
 #endif

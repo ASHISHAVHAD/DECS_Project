@@ -11,6 +11,9 @@
 #include <cppconn/statement.h>
 #include <cppconn/prepared_statement.h>
 
+// Initialize the connection pool (New function)
+void db_init(int pool_size);
+
 sql::Connection* get_db_connection();
 void close_db_connection(sql::Connection* conn);
 

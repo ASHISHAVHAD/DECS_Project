@@ -10,15 +10,24 @@ GitHub Repository Link: https://github.com/ASHISHAVHAD/DECS_Project
 
 **Project Title:** Performance testing and benchmarking of Key-Value Server and identification of bottlenecks.
 
-**Description:** This project aims to implement and test a functionally correct server, test its performance across various loads and identify software and hardware bottlenecks. The server is a key-value server where user can send a key value to store, access value by providing a key, update value associated with a key and delete a key value pair. The server works over http. The persistent data is stored in mysql server. A cache is also implemented which works as a LRU cache and stores most recently accessed key-value pairs. Cache is in-memory. For concurrency thread pool mechanism is used, where each thread looks for a request in queue and picks up available requests to process if it is idle.
+**Description:** This project aims to implement and test a functionally correct server, test its performance across various loads and identify software and hardware bottlenecks. The server is a key-value store where users can send a key value to store, access value by providing a key, update value associated with a key, and delete a key-value pair. The server works over HTTP. The persistent data is stored in a MySQL server. An in-memory LRU cache is implemented to store recently accessed key-value pairs for fast access. For concurrency, a thread pool mechanism is used, where each thread looks for a request in the queue and picks up available requests to process.
 
-**Technical Details:** Server is implemented in cpp. For server operations, httplib library is used. For storing data mysql server is used. For database connection libmysqlcppconn-dev is used.
+Additionally, a custom **Load Generator** is included to stress-test the server using various synthetic workloads (Write-Heavy, Read-Heavy, Zipfian distribution) and measure throughput, latency, and cache hit rates.
 
-Directory Structure:
+**Technical Details:** Server and Load Generator are implemented in C++. For HTTP operations, `httplib` library is used. For storing data, MySQL server is used. For database connection, `libmysqlcppconn-dev` is used.
 
+**Directory Structure:**
+
+```text
     |- interactive_client
         |- main.cpp
         |- Makefile
+
+    |- load_generator
+        |- main.cpp
+        |- config.h
+        |- Makefile
+        |- run_and_monitor.sh
 
     |- server
         |- cache.cpp
@@ -36,10 +45,9 @@ Directory Structure:
     |- create_db.sql
     |- httplib.h
     |- README.md
+```
 
-
-**Steps to setup and run the project(linux-only):**
-
+**Steps to setup and run the project (Linux-only):**
 
 1. Install g++ and other essential libraries:
 
@@ -84,52 +92,103 @@ Directory Structure:
     ```
     This will create an executable named `interactive_client` in the `interactive_client/` directory.
 
-7. Open new terminal window and change current working directory to DECS_Project/server:
+7. Compile load generator code:
 
     ```bash
-    ./kv_server
+    cd ../load_generator
+    make
+    chmod +x run_and_monitor.sh
     ```
+    This will create an executable named `load_gen` and make the wrapper script executable.
 
-8. Open one more terminal and change current working directory to DECS_Project/interactive_client:
+---
 
-    ```bash
-    ./interactive_client
-    ```
+### Running the Application
 
-**You can pin server, client and database to different CPU cores to simulate more realistic scenario**
+**1. Start the Server**
+Open a terminal window and change current working directory to `DECS_Project/server`:
 
-1. For MySQL server run following commands:
+```bash
+./kv_server
+```
+
+**2. Run Interactive Client (Functional Testing)**
+Open a new terminal and change current working directory to `DECS_Project/interactive_client`:
+
+```bash
+./interactive_client
+```
+
+**3. Run Load Generator (Performance Testing)**
+The load generator allows you to stress test the server. Open a new terminal and change directory to `DECS_Project/load_generator`.
+
+Usage:
+```bash
+./run_and_monitor.sh <max_clients> <duration_per_run_sec> <workload_type> [other_args...]
+```
+
+*   **max_clients**: The script will iterate from 1 client up to this number (or in steps).
+*   **duration_per_run_sec**: How long each test level runs.
+*   **workload_type**:
+    *   `0` : PUT_ALL (Write-Heavy)
+    *   `1` : GET_ALL (Read-Heavy, Random Keys/Cache Miss)
+    *   `2` : GET_POPULAR (Read-Heavy, Hot Keys/Cache Hit)
+    *   `3` : GET_PUT (Mixed)
+
+Example:
+```bash
+# Run a test scaling up to 100 clients, 30 seconds per run, using Workload 2 (GET_POPULAR)
+./run_and_monitor.sh 100 30 2
+```
+*Results will be saved to a CSV file in the current directory.*
+
+---
+
+### CPU Pinning (Taskset)
+
+To simulate a realistic scenario and ensure consistent benchmarking, you should pin the Server, Client, and Database to different CPU cores.
+
+**1. Pinning MySQL Server:**
+
 ```bash
 sudo systemctl edit mysql.service
 ```
-Add following to the file, put what cpu cores you want to pin:
+Add the following to the file (replace `<list of cpu cores>` with actual core numbers, e.g., `0,8`):
 ```bash
 [Service]
 CPUAffinity=<list of cpu cores>
 ```
-
+Reload and restart:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl restart mysql
 ```
-
-Verify whether it is pinned properly:
+Verify pinning:
 ```bash
 MYSQL_PID=$(pgrep mysqld | head -n 1)
 taskset -cp $MYSQL_PID
 ```
 
-2. For server:
+**2. Pinning the Key-Value Server:**
+Assuming you want to run the server on cores 1, 2, 9, and 10:
 ```bash
-taskset -c <list of cpu cores> ./kv_server
+taskset -c 1,2,9,10 ./kv_server
 ```
 
-3. For interactive client:
+**3. Pinning the Load Generator:**
+The `run_and_monitor.sh` script usually handles pinning for the load generator internally (check variables in the script), or you can pin the script execution itself:
 ```bash
-taskset -c <list of cpu cores> ./interactive_client
+taskset -c 3-7,11-15 ./run_and_monitor.sh 100 30 2
 ```
 
-**Sample output of the client is provided below:**
+**4. Pinning the Interactive Client:**
+```bash
+taskset -c 3 ./interactive_client
+```
+
+---
+
+### Sample Interactive Client Output
 
 ```bash
 Enter command (add, get, update, delete, exit): add

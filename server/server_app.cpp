@@ -11,18 +11,21 @@ ServerApp::ServerApp() {
 
 }
 
-void ServerApp::init() {
+void ServerApp::init(int num_threads) {
+
+    server_threads = num_threads;
 
     log_message("Initializing ServerApp...");
 
-    // initializing mysql driver
-    try {
-        sql::mysql::get_mysql_driver_instance();
-        log_message("MySQL driver instance obtained successfully.");
-    } catch (sql::SQLException &e) {
-        log_message("ERROR: Could not get MySQL driver instance: " + std::string(e.what()));
-        exit(1);
-    }
+    // Initialize Database Connection Pool
+    // We create as many DB connections as there are worker threads to minimize waiting
+    log_message("Initializing MySQL connection pool with " + std::to_string(50) + " connections...");
+    db_init(50);
+
+    log_message("Configuring httplib server with a thread pool of size " + std::to_string(server_threads));
+    svr.new_task_queue = [this] {
+        return new httplib::ThreadPool(server_threads);
+    };
 
     // GET /kv/{key}
     svr.Get("/kv/([^/]+)", [&](const httplib::Request& req, httplib::Response& res) {
@@ -33,10 +36,10 @@ void ServerApp::init() {
         std::string source_str;
         {
             std::lock_guard<std::mutex> lock(cache_mutex);
-            value = cache_get(key); // checking in cache, returns empty string if not found in cache
+            value = cache_get(key); // checking in cache
         }
 
-        if (!value.empty()) { // found in cache, hence cache hit
+        if (!value.empty()) { // found in cache
             res.status = 200;
             source_str = "cache";
             res.set_content("{\"key\":\"" + key + "\", \"value\":\"" + value + "\", \"source\":\"cache\"}", "application/json");
@@ -48,8 +51,8 @@ void ServerApp::init() {
                 source_str = "database (cache miss)";
                 res.set_content("{\"key\":\"" + key + "\", \"value\":\"" + value + "\", \"source\":\"database\"}", "application/json");
                 {
-                    std::lock_guard<std::mutex> lock(cache_mutex); // locking cache for writing to cache
-                    cache_put(key, value); // putting this key-value in cache as recently used value
+                    std::lock_guard<std::mutex> lock(cache_mutex); 
+                    cache_put(key, value); // update cache
                 }
             } else { //not found in database
                 res.status = 404;
@@ -60,7 +63,7 @@ void ServerApp::init() {
         log_message(log_msg_prefix + " -> Status: " + std::to_string(res.status) + ", Source: " + source_str);
     });
 
-    // POST /kv/{key} -> for creating and adding the key-value pair to database
+    // POST /kv/{key}
     svr.Post("/kv/([^/]+)", [&](const httplib::Request& req, httplib::Response& res) {
         std::string key = req.matches[1];
         std::string log_msg_prefix = "POST /kv/" + key + " from " + req.remote_addr + ":" + std::to_string(req.remote_port);
@@ -74,11 +77,11 @@ void ServerApp::init() {
         }
 
         if (db_create(key, value_from_body)) {
-            res.status = 201; // this status code is returned if a new resource is created at the server
+            res.status = 201; 
             res.set_content("{\"message\":\"Key-value pair created\"}", "application/json");
             {
-                std::lock_guard<std::mutex> lock(cache_mutex);
-                cache_put(key, value_from_body); // add to cache as recently used
+                //std::lock_guard<std::mutex> lock(cache_mutex);
+                //cache_put(key, value_from_body); 
             }
             log_message(log_msg_prefix + " -> Status: " + std::to_string(res.status) + ", Action: Created (DB+Cache)");
         } else {
@@ -94,7 +97,7 @@ void ServerApp::init() {
         }
     });
 
-    // PUT /kv/{key} -> for updating the value corresponding to existing key
+    // PUT /kv/{key}
     svr.Put("/kv/([^/]+)", [&](const httplib::Request& req, httplib::Response& res) {
         std::string key = req.matches[1];
         std::string log_msg_prefix = "PUT /kv/" + key + " from " + req.remote_addr + ":" + std::to_string(req.remote_port);
@@ -112,12 +115,12 @@ void ServerApp::init() {
             res.set_content("{\"message\":\"Key-value pair updated\"}", "application/json");
             {
                 std::lock_guard<std::mutex> lock(cache_mutex);
-                cache_put(key, value_from_body); // update value in the cache also to maintain cache coherence with database
+                cache_put(key, value_from_body); 
             }
             log_message(log_msg_prefix + " -> Status: " + std::to_string(res.status) + ", Action: Updated (DB+Cache)");
         } else {
             if (!db_key_exists(key)) {
-                res.status = 404; // key not found
+                res.status = 404; 
                 res.set_content("{\"error\":\"Key not found. Use POST to create.\"}", "application/json");
                 log_message(log_msg_prefix + " -> Status: " + std::to_string(res.status) + ", Error: Not Found (Key missing)");
             } else {
@@ -138,7 +141,7 @@ void ServerApp::init() {
             res.set_content("{\"message\":\"Key-value pair deleted\"}", "application/json");
             {
                 std::lock_guard<std::mutex> lock(cache_mutex);
-                cache_delete(key); // remove from cache also
+                cache_delete(key); 
             }
             log_message(log_msg_prefix + " -> Status: " + std::to_string(res.status) + ", Action: Deleted (DB+Cache)");
         } else {
@@ -153,20 +156,10 @@ void ServerApp::init() {
             }
         }
     });
-
-    /* error handler for requests that don't match any route
-    svr.set_error_handler([&](const httplib::Request& req, httplib::Response& res) {
-        std::string log_msg_prefix = "Unhandled request " + req.method + " " + req.path + " from " + req.remote_addr + ":" + std::to_string(req.remote_port);
-        const char* fmt = "Unknown route.";
-        char buf[BUFSIZ];
-        snprintf(buf, sizeof(buf), fmt, res.status);
-        res.set_content(buf, "text/html");
-        log_message(log_msg_prefix + " -> Status: " + std::to_string(res.status) + ", Error: Unhandled Route");
-    });*/
 }
 
 void ServerApp::run() {
-    log_message("Server starting with " + std::to_string(std::thread::hardware_concurrency() - 1) + " worker threads.");
+    log_message("Server starting with " + std::to_string(server_threads) + " worker threads.");
     log_message("Listening on 0.0.0.0:" + std::to_string(SERVER_PORT));
 
     if (!svr.listen("0.0.0.0", SERVER_PORT)) {
